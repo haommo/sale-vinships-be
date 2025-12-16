@@ -14,6 +14,7 @@ const auth_module_1 = require("./modules/auth/auth.module");
 const users_module_1 = require("./modules/users/users.module");
 const leads_module_1 = require("./modules/leads/leads.module");
 const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
+const app_controller_1 = require("./app.controller");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -30,7 +31,7 @@ exports.AppModule = AppModule = __decorate([
             leads_module_1.LeadsModule,
             dashboard_module_1.DashboardModule,
         ],
-        controllers: [],
+        controllers: [app_controller_1.AppController],
         providers: [],
     })
 ], AppModule);
