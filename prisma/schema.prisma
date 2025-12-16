@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// MariaDB is MySQL-compatible, so we use "mysql" provider
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String     @id @default(nanoid(12))
+  email          String     @unique
+  password       String
+  name           String
+  role           UserRole   @default(SALES)
+  status         UserStatus @default(ACTIVE)
+  avatar         String?
+  lastLogin      DateTime?
+  leadsProcessed Int        @default(0)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  leads          Lead[]
+
+  @@map("users")
+}
+
+model Lead {
+  id             String     @id @default(nanoid(12))
+  name           String
+  company        String?
+  website        String?
+  region         String?
+  industry       String?
+  platform       String     @default("other")
+  source         String     @default("search")
+  status         LeadStatus @default(NEW)
+  nextActionDate DateTime?
+  emails         Json
+  phones         Json
+  keywords       Json
+  notes          Json
+  userId         String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("leads")
+}
+
+enum UserRole {
+  ADMIN
+  SALES
+  MARKETING
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  POTENTIAL
+  CLOSED
+}
