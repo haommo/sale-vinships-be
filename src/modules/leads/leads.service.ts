@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -44,6 +45,60 @@ export class LeadsService {
       );
     }
     return emails.map((e) => e.toLowerCase().trim());
+  }
+
+  // Helper: Check for duplicate emails in existing leads
+  private async checkDuplicateEmails(
+    emails: string[],
+    excludeLeadId?: string,
+  ): Promise<void> {
+    if (emails.length === 0) return;
+
+    const allLeads = await this.prisma.lead.findMany({
+      where: excludeLeadId ? { id: { not: excludeLeadId } } : undefined,
+      select: { id: true, name: true, emails: true },
+    });
+
+    for (const lead of allLeads) {
+      const leadEmails = (lead.emails as string[]) || [];
+      const duplicates = emails.filter((email) =>
+        leadEmails.some(
+          (existingEmail) =>
+            existingEmail.toLowerCase() === email.toLowerCase(),
+        ),
+      );
+
+      if (duplicates.length > 0) {
+        throw new ConflictException('Lead đã tồn tại');
+      }
+    }
+  }
+
+  // Helper: Check for duplicate phones in existing leads
+  private async checkDuplicatePhones(
+    phones: string[],
+    excludeLeadId?: string,
+  ): Promise<void> {
+    if (phones.length === 0) return;
+
+    const allLeads = await this.prisma.lead.findMany({
+      where: excludeLeadId ? { id: { not: excludeLeadId } } : undefined,
+      select: { id: true, name: true, phones: true },
+    });
+
+    for (const lead of allLeads) {
+      const leadPhones = (lead.phones as string[]) || [];
+      const duplicates = phones.filter((phone) =>
+        leadPhones.some(
+          (existingPhone) =>
+            this.sanitizePhone(existingPhone) === this.sanitizePhone(phone),
+        ),
+      );
+
+      if (duplicates.length > 0) {
+        throw new ConflictException('Lead đã tồn tại');
+      }
+    }
   }
 
   private readonly leadSelect = {
@@ -172,6 +227,10 @@ export class LeadsService {
       ? this.validateAndSanitizePhones(phones)
       : [];
 
+    // Check for duplicate emails and phones
+    await this.checkDuplicateEmails(validatedEmails);
+    await this.checkDuplicatePhones(sanitizedPhones);
+
     return this.prisma.lead.create({
       data: {
         ...leadData,
@@ -205,11 +264,17 @@ export class LeadsService {
     };
 
     if (emails !== undefined) {
-      updateData.emails = this.validateEmails(emails);
+      const validatedEmails = this.validateEmails(emails);
+      // Check duplicate emails, excluding current lead
+      await this.checkDuplicateEmails(validatedEmails, id);
+      updateData.emails = validatedEmails;
     }
 
     if (phones !== undefined) {
-      updateData.phones = this.validateAndSanitizePhones(phones);
+      const sanitizedPhones = this.validateAndSanitizePhones(phones);
+      // Check duplicate phones, excluding current lead
+      await this.checkDuplicatePhones(sanitizedPhones, id);
+      updateData.phones = sanitizedPhones;
     }
 
     if (keywords !== undefined) {

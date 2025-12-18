@@ -67,9 +67,6 @@ export class AuthService {
 
     return {
       accessToken: this.jwtService.sign(payload),
-      refreshToken: this.jwtService.sign(payload, {
-        expiresIn: '7d',
-      }),
       user: {
         id: user.id,
         email: user.email,
@@ -77,27 +74,6 @@ export class AuthService {
         role: user.role,
       },
     };
-  }
-
-  async refreshToken(refreshToken: string): Promise<AuthResponseDto> {
-    try {
-      const payload = this.jwtService.verify(refreshToken) as { sub: string };
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-      });
-
-      if (!user) {
-        throw new UnauthorizedException();
-      }
-
-      if (user.status === 'INACTIVE') {
-        throw new UnauthorizedException('Account is inactive');
-      }
-
-      return this.generateTokens(user);
-    } catch {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
   }
 
   async getProfile(userId: string) {
